@@ -18,6 +18,7 @@
 #define BLOCKS_PER_INODE 12
 #define MAX_BLOCKS ((DISK_SIZE_MB * 1024 * 1024) / BLOCK_SIZE)
 #define MAX_NAMESIZE 32
+#define MAX_PASSWORD_SIZE 32
 
 #define ROOT_INODE 0
 
@@ -55,8 +56,8 @@ typedef enum {
 typedef struct {
     inode_type_t type;
     char name[MAX_NAMESIZE];
-    char creator[MAX_NAMESIZE];
-    char owner[MAX_NAMESIZE];
+    uint32_t creator_uid;
+    uint32_t owner_uid;
     uint32_t size;
     time_t creation_date;       
     time_t modification_date;   
@@ -109,46 +110,6 @@ void freeInode(int inode_index);
 int readBlock(uint32_t block_index, void *buffer);
 int writeBlock(uint32_t block_index, const void *buffer);
 
-/* Diretórios */
-int dirFindEntry(int dir_inode, const char *name, inode_type_t type, int *out_inode);
-int dirAddEntry(int dir_inode, const char *name, inode_type_t type, int inode_index);
-int dirRemoveEntry(int dir_inode, const char *name, inode_type_t type);
-
-/* Permissões */
-int hasPermission(const inode_t *inode, const char *username, permission_t perm);
-
-/* Manipulação de conteúdos */
-int createDirectory(int parent_inode, const char *name, const char *user);
-int deleteDirectory(int parent_inode, const char *name, const char *user);
-int createFile(int parent_inode, const char *name, const char *user);
-int deleteFile(int parent_inode, const char *name, const char *user);
-int addContentToInode(int inode_number, const char *data, size_t data_size, const char *user);
-int readContentFromInode(int inode_number, char *buffer, size_t buffer_size, size_t *out_bytes, const char *user);
-
-int resolvePath(const char *path, int current_inode, int *inode_out);
-int createDirectoriesRecursively(const char *path, int current_inode, const char *user);
-static void splitPath(const char *full_path, char *dir_path, char *base_name);
-
-int createSymlink(int parent_inode, int target_index, const char *link_name, const char *user);
-
-// core utils
-int cmd_cd(int *current_inode, const char *path);
-int cmd_cat(int current_inode, const char *path, const char *user);
-int cmd_mkdir(int current_inode, const char *fullpath, const char *user);
-int cmd_touch(int current_inode, const char *fullpath, const char *user);
-int cmd_echo_arrow(int current_inode, const char *fullpath, const char *content, const char *user);
-int cmd_echo_arrow_arrow(int current_inode, const char *fullpath, const char *content, const char *user);
-
-int cmd_cp(int current_inode, const char *src_path, const char *src_name,
-           const char *dst_path, const char *dst_name, const char *user);
-int cmd_mv(int current_inode, const char *src_path, const char *src_name,
-           const char *dst_path, const char *dst_name, const char *user);
-int cmd_ln_s(int current_inode, const char *target_path, const char *link_path, const char *user);
-int cmd_ls(int current_inode, const char *path, const char *user, int info_args);
-int cmd_rm(int current_inode, const char *filepath, const char *user);
-int cmd_rmdir(int current_inode, const char *filepath, const char *user);
-int cmd_unlink(int current_inode, const char *filepath, const char *user);
-int cmd_df(void);
 
 /* Variáveis globais */
 extern unsigned char *block_bitmap;

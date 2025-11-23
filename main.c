@@ -1,4 +1,5 @@
 // cmd.c
+#include "core_utils.h"
 #include "fs.h"
 #include <stdio.h>
 #include <string.h>
@@ -8,16 +9,17 @@
 
 int main() {
     int current_inode = 0; // inode raiz
-    char user[10] = "root";  // usuário fixo para testes
+    char user[MAX_NAMESIZE];
     char input[MAX_INPUT];
 
     if (access(DISK_NAME, F_OK) == 0) {
     // Disco existe → montar
-    if (mount_fs() != 0) {
-        fprintf(stderr, "Erro ao montar o filesystem!\n");
-        return -1;
-    }
-    } else {
+        if (mount_fs() != 0) {
+            fprintf(stderr, "Erro ao montar o filesystem!\n");
+            return -1;
+        }
+    } 
+    else {
         // Disco não existe → criar
         if (init_fs() != 0) {
             fprintf(stderr, "Erro ao inicializar o filesystem!\n");
