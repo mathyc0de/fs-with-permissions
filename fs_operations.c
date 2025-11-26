@@ -698,7 +698,7 @@ int resolvePath(const char *path, int current_inode, int *inode_out) {
 }
 
 /* Separa path entre caminho do pai e o nome do arquivo */
-static void splitPath(const char *full_path, char *dir_path, char *base_name) {
+void splitPath(const char *full_path, char *dir_path, char *base_name) {
     const char *last_slash = strrchr(full_path, '/');
     if (last_slash) {
         size_t dir_len = last_slash - full_path;

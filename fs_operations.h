@@ -20,7 +20,7 @@ int readContentFromInode(int inode_number, char *buffer, size_t buffer_size, siz
 
 int resolvePath(const char *path, int current_inode, int *inode_out);
 int createDirectoriesRecursively(const char *path, int current_inode, int user_id);
-static void splitPath(const char *full_path, char *dir_path, char *base_name);
+void splitPath(const char *full_path, char *dir_path, char *base_name);
 
 int createSymlink(int parent_inode, int target_index, const char *link_name, int user_id);
 
