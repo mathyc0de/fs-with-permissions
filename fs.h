@@ -18,9 +18,9 @@
 #define BLOCKS_PER_INODE 12
 #define MAX_BLOCKS ((DISK_SIZE_MB * 1024 * 1024) / BLOCK_SIZE)
 #define MAX_NAMESIZE 32
-#define MAX_PASSWORD_SIZE 32
 
 #define ROOT_INODE 0
+#define ROOT_UID 0
 
 typedef struct {
     uint32_t magic; // identificador do FS
@@ -88,6 +88,7 @@ typedef struct {
     fs_entry_t *entries;
     int count;
 } fs_dir_list_t;
+
 
 /* Funções principais */
 int init_fs(void);

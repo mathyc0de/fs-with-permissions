@@ -1,6 +1,82 @@
+#include "core_utils.h"
+#include "utils.h"
 #include "fs_operations.h"
+#include <stdlib.h>
 
 /* ---- Comandos de FS ---- */
+
+    // Criação de pastas base
+//     create_user();
+
+//     create_root();
+
+//     // Criação do usuário
+//     char* password;
+
+//     printf("Digite o nome do usuário a ser criado: ");
+//     fgets(user, MAX_NAMESIZE, stdin);
+//     printf("\nCrie uma senha: ");
+//     fgets(password, MAX_PASSWORD_SIZE, stdin);
+//     create_user(user, password);
+
+//     int create_foundation_folder() {
+
+    
+// }
+
+user_t *user = NULL;
+
+int get_next_uid() {
+    char* buffer;
+    cmd_cat(ROOT_INODE, "etc/passwd", ROOT_UID, buffer);
+
+    char *last_line_break = strrchr(buffer, '\n');
+    char *last_line = last_line_break ? last_line_break + 1 : buffer;
+    char *last_colon = strrchr(last_line, ':');
+    free(buffer);
+
+    return atoi(last_colon) + 1;
+}
+
+int create_root() {
+    cmd_echo_arrow(ROOT_INODE, "etc/passwd", "root:x:0", ROOT_UID);
+    cmd_echo_arrow(ROOT_INODE, "etc/shadow", "root:!", ROOT_UID);
+    return 0;
+}
+
+int create_user() {
+    char username[MAX_NAMESIZE], password[MAX_PASSWORD_SIZE], passwd_entry[MAX_PASSWD_ENTRY], shadow_entry[MAX_SHADOW_ENTRY], encrypted_password[MAX_PASSWORD_SIZE];
+    int passwd_inode, shadow_inode;
+
+    // Input do Usuário
+    printf("Digite o nome do usuário a ser criado: ");
+    fgets(username, MAX_NAMESIZE, stdin);
+    printf("\nCrie uma senha: ");
+    fgets(password, MAX_PASSWORD_SIZE, stdin);
+
+    // Obtendo os I-Nodes do passwd e shadow
+    resolvePath("etc/passwd", ROOT_INODE, &passwd_inode);
+    resolvePath("etc/shadow", ROOT_INODE, &shadow_inode);
+
+    int new_uid = get_next_uid();
+
+    // Lógica do passwd
+    snprintf(passwd_entry, sizeof(passwd_entry), "%s:x:%d", username, new_uid);
+    addContentToInode(passwd_inode, passwd_entry, strlen(passwd_entry), ROOT_UID);
+
+    // Lógica do shadow
+    encrypt_password(password, encrypted_password);
+    snprintf(shadow_entry, sizeof(shadow_entry), "%s:%s", username, encrypted_password);
+    addContentToInode(shadow_inode, shadow_entry, sizeof(shadow_entry), ROOT_UID);
+    return 0;
+}
+
+int login(char* username, char* password) {
+    printf("Falta implementar!\n");
+    if (1) {
+        // user->name
+    }
+}
 
 // cd (muda diretorio)
 int cmd_cd(int *current_inode, const char *path) {
@@ -101,7 +177,7 @@ int cmd_echo_arrow_arrow(int current_inode, const char *full_path, const char *c
 
 
 // cat (le conteudo de arquivo)
-int cmd_cat(int current_inode, const char *path, int user_id) {
+int cmd_cat(int current_inode, const char *path, int user_id, char* buffer) {
     if (!path || !user_id) return -1;
     // resolve o inode do arquivo
     int target_inode;
@@ -124,7 +200,7 @@ int cmd_cat(int current_inode, const char *path, int user_id) {
     size_t filesize = inode->size;
     if (filesize == 0) return 0; // arquivo vazio
 
-    char *buffer = malloc(filesize + 1);
+    buffer = malloc(filesize + 1);
     if (!buffer) return -1;
 
     // Lê arquivo
@@ -135,9 +211,9 @@ int cmd_cat(int current_inode, const char *path, int user_id) {
     }
 
     buffer[bytes_read] = '\0';
-    printf("%s\n", buffer);
+    // printf("%s\n", buffer);
 
-    free(buffer);
+    // free(buffer);
     return 0;
 }
 

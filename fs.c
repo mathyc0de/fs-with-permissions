@@ -15,7 +15,6 @@ unsigned char *block_bitmap = NULL;
 unsigned char *inode_bitmap = NULL;
 inode_t *inode_table = NULL;
 FILE *disk = NULL;
-char *user;
 
 /* Layout do FS */
 off_t off_block_bitmap = 0;
@@ -127,19 +126,6 @@ int init_fs(void) {
     // tabela de inodes
     fseek(disk, off_inode_table, SEEK_SET);
     fwrite(inode_table, 1, computed_inode_table_bytes, disk);
-
-
-    // // Criação de pastas base
-    // create_foundation_folders();
-
-    // // Criação do usuário
-    // char* password;
-
-    // printf("Digite o nome do usuário a ser criado: ");
-    // fgets(user, MAX_NAMESIZE, stdin);
-    // printf("\nCrie uma senha: ");
-    // fgets(password, MAX_PASSWORD_SIZE, stdin);
-    // create_user(user, password);
 
     printf("\n[INFO] Filesystem criado com sucesso.\n\n");
 
@@ -405,15 +391,4 @@ int writeBlock(uint32_t block_index, const void *buffer){
     fflush(disk);
     fsync(fileno(disk));
     return (written_bytes == BLOCK_SIZE) ? 0 : -1;
-}
-
-
-
-int create_foundation_folders() {
-    int inode = createDirectory(0, "etc", "root");
-    
-}
-
-int create_user(char user[MAX_NAMESIZE], char password[MAX_PASSWORD_SIZE]) {
-    
 }

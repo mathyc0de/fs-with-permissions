@@ -7,11 +7,7 @@
 
 #define MAX_INPUT 256
 
-int main() {
-    int current_inode = 0; // inode raiz
-    char user[MAX_NAMESIZE];
-    char input[MAX_INPUT];
-
+int start_fs() {
     if (access(DISK_NAME, F_OK) == 0) {
     // Disco existe → montar
         if (mount_fs() != 0) {
@@ -25,7 +21,41 @@ int main() {
             fprintf(stderr, "Erro ao inicializar o filesystem!\n");
             return -1;
         }
+        // Criar o root caso seja a primeira execução do disco
+        create_root();
+        if (create_user() != 0) {
+            remove(DISK_NAME);
+            fprintf(stderr, "Erro ao inicializar o filesystem!\n");
+            return -1;
+        }
     }
+}
+
+int try_login() {
+    char username[MAX_NAMESIZE], password[MAX_PASSWORD_SIZE];
+    while (!user) {
+        // Input do Usuário
+        printf("Digite o nome do usuário a ser criado: ");
+        fgets(username, MAX_NAMESIZE, stdin);
+        printf("\nCrie uma senha: ");
+        fgets(password, MAX_PASSWORD_SIZE, stdin);
+        
+        login(username, password);
+
+    }
+}
+
+
+
+int main() {
+    int current_inode = 0; // inode raiz
+    char input[MAX_INPUT];
+    if (start_fs() != 0 || try_login() != 0) return -1;
+
+
+    
+
+
 
     printf("MiniFS Terminal. Digite 'exit' para sair.\n");
 
@@ -85,7 +115,11 @@ int main() {
             
         }
         else if (strcmp(cmd, "cat") == 0 && arg1) {
-            cmd_cat(current_inode, arg1, user);
+            char* content;
+            if (cmd_cat(current_inode, arg1, user, content) != -1) {
+                printf("%s\n", content);
+            };
+            free(content);
         }
         else if (strcmp(cmd, "ls") == 0) {
             if (arg1 && strcmp(arg1, "-l") == 0) {
