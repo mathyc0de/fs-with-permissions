@@ -4,5 +4,5 @@ disk.dat
 
 *.o
 *.out
-teste
-a.out
+build
+main
