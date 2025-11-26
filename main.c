@@ -35,11 +35,12 @@ int try_login() {
     char username[MAX_NAMESIZE], password[MAX_PASSWORD_SIZE];
     while (!user) {
         // Input do Usuário
-        printf("Digite o nome do usuário a ser criado: ");
+        printf("Usuário: ");
         fgets(username, MAX_NAMESIZE, stdin);
-        printf("\nCrie uma senha: ");
+        printf("\nSenha: ");
         fgets(password, MAX_PASSWORD_SIZE, stdin);
-        
+        printf("\n");
+
         login(username, password);
 
     }
