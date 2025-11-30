@@ -1,4 +1,5 @@
 #include "fs.h"
+#include "fs_operations.h"
 #include <string.h>
 #include <errno.h>
 #include <sys/types.h>

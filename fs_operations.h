@@ -23,5 +23,6 @@ int createDirectoriesRecursively(const char *path, int current_inode, int user_i
 void splitPath(const char *full_path, char *dir_path, char *base_name);
 
 int createSymlink(int parent_inode, int target_index, const char *link_name, int user_id);
+int deleteSymlink(int parent_inode, int target_inode_idx, int user_id);
 
 #endif

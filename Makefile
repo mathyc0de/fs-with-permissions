@@ -1,5 +1,4 @@
 CC = gcc
-CFLAGS = -Wall -Wextra
 
 BUILD_DIR = build
 
@@ -19,7 +18,7 @@ $(BUILD_DIR)/%.o: ./%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) $^ -o $@
+	$(CC) $(CFLAGS) $^ -o $@ -lcrypt
 
 clean:
 	rm -rf $(BUILD_DIR) ./main

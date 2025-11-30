@@ -1,5 +1,5 @@
 #include "fs.h"
-
+#define UNREFERENCED(x) (void)(x)
 
 /* ---- diretórios ---- */
 /* Tenta encontrar elemento em um diretório */
@@ -168,6 +168,7 @@ int dirRemoveEntry(int dir_inode, const char *name, inode_type_t type) {
     if (dir_inode < 0 || dir_inode >= MAX_INODES || !name)
         return -1;
 
+    UNREFERENCED(type);
     int current_inode = dir_inode;
 
     while (current_inode >= 0) {
@@ -448,7 +449,6 @@ int addContentToInode(int inode_index, const char *data, size_t data_size, int u
     if (inode_index < 0 || inode_index >= MAX_INODES) return -1;
 
     inode_t *inode = &inode_table[inode_index];
-
     // Permissão de escrita
     if (!hasPermission(inode, user_id, PERM_WRITE)) return -1;
 
@@ -634,7 +634,7 @@ int createSymlink(int parent_inode, int target_index, const char *link_name, int
     return 0;
 }
 
-int deleteSymlink(int parent_inode, int target_inode_idx, int user_id){
+int deleteSymlink(int parent_inode, int target_inode_idx, int user_id) {
     if (parent_inode < 0 || parent_inode >= MAX_INODES || !target_inode_idx) return -1;
 
     inode_t *target = &inode_table[target_inode_idx];
