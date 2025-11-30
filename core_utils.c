@@ -678,6 +678,7 @@ int create_user() {
     resolvePath(passwd_path, ROOT_INODE, &passwd_inode);
     resolvePath(shadow_path, ROOT_INODE, &shadow_inode);
 
+    // obtém o próximo UID disponível
     int new_uid = get_next_uid();
     
     // Lógica do passwd
@@ -695,40 +696,32 @@ int create_user() {
 
 int assert_user_exists(char* username) {
     char* content;
-    _cat(ROOT_INODE, passwd_path, ROOT_UID, &content);
+    _cat(ROOT_INODE, passwd_path, ROOT_UID, &content); // Lê o arquivo passwd para encontrar o usuário e seu UID
 
-    char* line = strtok(content, "\n");
-    while (line != NULL) {
+    char* line_ptr = strtok(content, "\n"); // Itera sobre cada linha do passwd
+    while (line_ptr != NULL) {
 
-        char *colon1 = strchr(line, ':');
-        if (!colon1) {
-             line = strtok(NULL, "\n"); 
-             continue; 
-        }
+        char *colon1_ptr = strchr(line_ptr, ':'); // Procura o ':' que divide as linhas do passwd que contém <nome>:x:<UID>. Nesse caso será utilizado como marcador para o final da string.
 
-        int name_len = colon1 - line;
-        char username_found[name_len + 1];
-        strncpy(username_found, line, name_len);
-        username_found[name_len] = '\0';
+        int name_length = colon1_ptr - line_ptr; // calcula o número de carácteres do inicio da linha até o colon ':'
+        char username_found[name_length + 1]; 
+        strncpy(username_found, line_ptr, name_length); // copia somente o nome do usuario
+        username_found[name_length] = '\0';
 
 
-        if (strcmp(username_found, username) == 0) {
+        if (strcmp(username_found, username) == 0) { // usuário encontrado, procura o UID agora
 
-            char *colon2 = strchr(colon1 + 1, ':');
-            if (!colon2) {
-                 free(content); 
-                 return -1; 
-                }
+            char *colon2_ptr = strchr(colon1_ptr + 1, ':'); // <nome>:x:<UID> (ponteiro posicionado no último colon ':' para encotrar UID)
 
-            char *uid_str = colon2 + 1;
+            char *uid_str = colon2_ptr + 1; // CUIDADO, PRECISO VERIFICAR SE ESSE PONTEIRO PODE INCLUIR O '\n' DO FINAL DA STRING
 
-            int uid = atoi(uid_str);
+            int uid = atoi(uid_str); // converte a string para inteiro
             free(content);
 
             return uid;
         }
 
-        line = strtok(NULL, "\n");
+        line_ptr = strtok(NULL, "\n"); // pula de linha
     }
 
     free(content);
@@ -747,22 +740,24 @@ int login(const char* username, const char* password, int uid) {
     char* line = strtok(content, "\n");
     while (line != NULL)
     {
-        // --- Extrai USERNAME --- //
-        char* colon1 = strchr(line, ':');
+        // Manipulação da string para encontrar o usuário no shadow <nome_usuario>:<hash da senha>
+        char* colon1_ptr = strchr(line, ':');  // posiciona um ponteiro no colon para obter o tamanho do nome
 
-        int user_len = colon1 - line;
+        int user_length = colon1_ptr - line;
 
-        char username_found[user_len + 1];
-        strncpy(username_found, line, user_len);
-        username_found[user_len] = '\0';
+        char username_found[user_length + 1];
+        strncpy(username_found, line, user_length);
+        username_found[user_length] = '\0';
 
         // Compara usuário
         if (strcmp(username_found, username) == 0) {
-            size_t end_line = strcspn(colon1 + 1, "\n");
-            strncpy(password_found, colon1 + 1, end_line);
+            // usuário encontrado!
+            // manipulação da string para obter o hash da senha
+            size_t end_line = strcspn(colon1_ptr + 1, "\n");
+            strncpy(password_found, colon1_ptr + 1, end_line);
             password_found[end_line] = '\0';
 
-            if (strcmp(password_found, crypt(password, password_found)) == 0) {
+            if (strcmp(password_found, crypt(password, password_found)) == 0) { // caso o hash da senha informada coincida com o hash da senha armazenada, autentica o usuário
                 authenticated_uid = uid;
             } else {
                 authenticated_uid = -1;

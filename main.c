@@ -32,7 +32,6 @@ int main() {
         char *arg1 = strtok(NULL, " ");
         char *arg2 = strtok(NULL, " ");
         char *arg3 = strtok(NULL, "");
-        //char *arg4 = strtok(NULL, " ");
 
         if (!cmd) continue;
         int handled = 0;
@@ -53,80 +52,6 @@ int main() {
         if (!handled) {
             printf("Comando não reconhecido: %s\n", cmd);
         }
-
-
-        
-        // if (strcmp(cmd, "cd") == 0 && arg1) {
-        //     cmd_cd(&current_inode, arg1);
-        // }
-        // else if (strcmp(cmd, "mkdir") == 0 && arg1) {
-        //     cmd_mkdir(current_inode, arg1, authenticated_uid);
-        // }
-        // else if (strcmp(cmd, "touch") == 0 && arg1) {
-        //     cmd_touch(current_inode, arg1, authenticated_uid);
-        // }
-        // else if (strcmp(cmd, "rm") == 0 && arg1) {
-        //     cmd_rm(current_inode, arg1, authenticated_uid);
-        // }
-        // else if (strcmp(cmd, "clear") == 0) {
-        //     system("clear");
-        // }
-        // else if (strcmp(cmd, "rmdir") == 0 && arg1) {
-        //     cmd_rmdir(current_inode, arg1, authenticated_uid);
-        // }
-        // else if (strcmp(cmd, "echo") == 0 && arg1) {
-        //     char *content = arg1;
-        //     char *redir = arg2; // > ou >>
-        //     char *filename = arg3;
-
-        //     if (redir && filename && content) {
-        //         if (strcmp(redir, ">") == 0) {
-        //             cmd_echo_arrow(current_inode, filename, content, authenticated_uid);
-        //         }
-        //         else if (strcmp(redir, ">>") == 0) {
-        //             cmd_echo_arrow_arrow(current_inode, filename, content, authenticated_uid);
-        //         }
-        //     } else {
-        //         printf("Falha: echo conteudo >|>> arquivo\n");
-        //     }
-            
-        // }
-        // else if (strcmp(cmd, "cat") == 0 && arg1) {
-        //     char* content;
-        //     if (cmd_cat(current_inode, arg1, authenticated_uid, content) != -1) {
-        //         printf("%s\n", content);
-        //     };
-        //     free(content);
-        // }
-        // else if (strcmp(cmd, "ls") == 0) {
-        //     if (arg1 && strcmp(arg1, "-l") == 0) {
-        //         cmd_ls(current_inode, arg2? arg2 : ".", authenticated_uid, 1);
-        //     }
-        //     else {
-        //         cmd_ls(current_inode, arg1? arg1 : ".", authenticated_uid, 0);
-        //     }
-        // }
-        // else if (strcmp(cmd, "cp") == 0 && arg1 && arg2) {
-        //     cmd_cp(current_inode, ".", arg1, ".", arg2, authenticated_uid);
-        // }
-        // else if (strcmp(cmd, "mv") == 0 && arg1 && arg2) {
-        //     cmd_mv(current_inode, ".", arg1, ".", arg2, authenticated_uid);
-        // }
-        // else if (strcmp(cmd, "ln") == 0 && arg1 && strcmp(arg1, "-s") == 0 && arg2 && arg3) {
-        //     cmd_ln_s(current_inode, arg2, arg3, authenticated_uid);
-        // }
-        // else if (strcmp(cmd, "su") == 0 && arg1){
-        //     strncpy(authenticated_uid, arg1, 10);
-        // }
-        // else if (strcmp(cmd, "unlink") == 0 && arg1){
-        //     cmd_unlink(current_inode, arg1, authenticated_uid);
-        // }
-        // else if (strcmp(cmd, "df") == 0){
-        //     cmd_df();
-        // }
-        // else {
-        //     printf("Comando não reconhecido\n");
-        // }
     }
 
     printf("Saindo...\n");

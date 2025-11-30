@@ -33,6 +33,7 @@ const char table[] =
 
 
 int gen_salt(char *out, size_t length) {
+    // salt aleatório gerado para evitar que a senha seja decodificada com brute force por tentativa.
     unsigned char buf[length];
     getrandom(buf, length, 0);
 
@@ -45,6 +46,7 @@ int gen_salt(char *out, size_t length) {
 }
 
 int encrypt_password(char password[MAX_PASSWORD_SIZE], char out_buffer[MAX_HASH_SIZE]) {
+    // gera um hash da senha
     char salt_body[16];
     gen_salt(salt_body, sizeof(salt_body));
 
@@ -64,6 +66,7 @@ int encrypt_password(char password[MAX_PASSWORD_SIZE], char out_buffer[MAX_HASH_
 
 
 int start_fs() {
+    // Monta o disco
     if (access(DISK_NAME, F_OK) == 0) {
     // Disco existe → montar
         if (mount_fs() != 0) {
@@ -95,8 +98,8 @@ int try_login() {
         // Input do Usuário
         printf("Usuário: ");
         fgets(username, MAX_NAMESIZE, stdin);
-        username[strcspn(username, "\n")] = '\0';
-        int uid = assert_user_exists(username);
+        username[strcspn(username, "\n")] = '\0'; // remove o '\n' da string
+        int uid = assert_user_exists(username); // verifica se o usuário existe antes de prosseguir
         if (uid == -1) {
             printf("\nUsuário não encontrado!\n");
             continue;
