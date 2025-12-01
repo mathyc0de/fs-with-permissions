@@ -12,12 +12,30 @@ int authenticated_uid = -1;
 const char* passwd_path = "etc/passwd";
 const char* shadow_path = "etc/shadow";
 
-void strip_newline(char* s) {
-    s[strcspn(s, "\n")] = '\0';
+int parse_octal_permissions(const char *str, uint8_t *out)
+{
+    if (!str || !out)
+        return -1;
+
+    // Valida se são apenas dois dígitos
+    if (strlen(str) != 2)
+        return -1;
+
+    // Verifica se ambos são dígitos octais
+    if (str[0] < '0' || str[0] > '7') return -1;
+    if (str[1] < '0' || str[1] > '7') return -1;
+
+    int owner  = str[0] - '0'; // faz o mesmo que a função 'atoi()', porém nesse caso é feita uma subtração da distância entre o ASCI de um número para o ASCI 0 (e.g '7' - '0' => 55 - 48 = 7)
+    int others = str[1] - '0';
+
+    *out = (owner << 3) | others;
+
+    return 0;
 }
 
+
 // cd (muda diretorio)
-int _cd(int *current_inode, const char *path) {
+int _cd(int *current_inode, const char *path, int user_id) {
     if (!current_inode || !path) return -1;
 
     int target_inode;
@@ -26,7 +44,7 @@ int _cd(int *current_inode, const char *path) {
     inode_t *inode = &inode_table[target_inode];
     if (inode->type != FILE_DIRECTORY) return -1;
 
-    if (hasPermission(inode, authenticated_uid, PERM_EXEC) == 0) {
+    if (!hasPermission(inode, authenticated_uid, PERM_EXEC) && user_id != ROOT_UID) {
         printf("cd: Acesso negado, requer permissão X.\n");
         return -1;
     };
@@ -49,7 +67,7 @@ int _mkdir(int current_inode, const char *full_path, int user_id) {
 
     inode_t *parent = &inode_table[parent_inode];
 
-    if (!hasPermission(parent, user_id, PERM_WRITE | PERM_EXEC)) {
+    if (!hasPermission(parent, user_id, PERM_WRITE | PERM_EXEC) && user_id != ROOT_UID) {
         printf("mkdir: acesso negado — requer W e X no diretório pai.\n");
         return -1;
     }
@@ -72,7 +90,7 @@ int _touch(int current_inode, const char *full_path, int user_id) {
 
     inode_t *parent = &inode_table[parent_inode];
 
-    if (!hasPermission(parent, user_id, PERM_WRITE | PERM_EXEC)) {
+    if (!hasPermission(parent, user_id, PERM_WRITE | PERM_EXEC) && user_id != ROOT_UID) {
         printf("touch: acesso negado — requer W e X no diretório pai.\n");
         return -1;
     }
@@ -100,7 +118,7 @@ int _echo_arrow(int current_inode, const char *full_path, const char *content, i
     }
 
     inode_t *inode = &inode_table[inode_index];
-    if (!hasPermission(inode, user_id, PERM_WRITE)) {
+    if (!hasPermission(inode, user_id, PERM_WRITE) && user_id != ROOT_UID) {
         printf("echo: acesso negado — requer permissão W.\n");
         return -1;
     }
@@ -128,7 +146,7 @@ int _echo_arrow_arrow(int current_inode, const char *full_path, const char *cont
 
     int inode_index;
     if (dirFindEntry(parent_inode, name, FILE_REGULAR, &inode_index) != 0) {
-        if (!hasPermission(&inode_table[inode_index], user_id, PERM_WRITE)) {
+        if (!hasPermission(&inode_table[inode_index], user_id, PERM_WRITE) && user_id != ROOT_UID) {
             printf("echo: Acesso negado, requer permissão W.\n");
             return -1;
         }
@@ -157,7 +175,7 @@ int _cat(int current_inode, const char *path, int user_id, char** buffer) {
     }
 
     // assegura que há permissão para leitura
-    if (!hasPermission(inode, user_id, PERM_READ)) {
+    if (!hasPermission(inode, user_id, PERM_READ) && user_id != ROOT_UID) {
         printf("Acesso negado, requer permissão R\n");
         return -1;
     }
@@ -248,13 +266,13 @@ int _cp(int current_inode, const char *src_path, const char *src_name,
     if (!src_inode) return -1;
 
 
-    if (!hasPermission(src_inode, user_id, PERM_READ)) {
+    if (!hasPermission(src_inode, user_id, PERM_READ) && user_id != ROOT_UID) {
         printf("cp: Acesso negado, requer permissão de leitura no arquivo fonte.\n");
         return -1;
     }
 
     inode_t *dst_parent = &inode_table[dst_parent_inode];
-    if (!hasPermission(dst_parent, user_id, PERM_WRITE | PERM_EXEC)) {
+    if (!hasPermission(dst_parent, user_id, PERM_WRITE | PERM_EXEC) && user_id != ROOT_UID) {
         printf("cp: Acesso negado, requer permissão de escrita e execução no diretório destino.\n");
         return -1;
     }
@@ -305,7 +323,7 @@ int _mv(int current_inode, const char *src_path, const char *src_name,
     if (resolvePath(src_path, current_inode, &src_parent_inode) != 0) return -1;
 
     inode_t *src_parent = &inode_table[src_parent_inode];
-    if (!hasPermission(src_parent, user_id, PERM_WRITE | PERM_EXEC)) {
+    if (!hasPermission(src_parent, user_id, PERM_WRITE | PERM_EXEC) && user_id != ROOT_UID) {
         printf("mv: Acesso negado, requer permissão no diretório de origem.\n");
         return -1;
     }
@@ -345,7 +363,7 @@ int _ln_s(int current_inode,
             return -1;
     }
     inode_t *dir_inode = &inode_table[link_dir_index];
-    if (!hasPermission(dir_inode, user_id, PERM_WRITE | PERM_EXEC)) {
+    if (!hasPermission(dir_inode, user_id, PERM_WRITE | PERM_EXEC) && user_id != ROOT_UID) {
         printf("ln: Acesso negado, requer permissões W e X no diretório.\n");
         return -1;
     }
@@ -371,12 +389,12 @@ int _ls(int current_inode, const char *path, int user_id, int info_arg) {
     
     inode_t *dir_inode = &inode_table[target_inode];
 
-    if (!hasPermission(dir_inode, user_id, PERM_EXEC)) {
+    if (!hasPermission(dir_inode, user_id, PERM_EXEC) && user_id != ROOT_UID) {
         printf("ls: Acesso negado, requer permissão X no diretório.\n");
         return -1;
     }
 
-    if (!hasPermission(dir_inode, user_id, PERM_READ)) {
+    if (!hasPermission(dir_inode, user_id, PERM_READ) && user_id != ROOT_UID) {
         printf("ls: Acesso negado, requer permissão R no diretório.\n");
         return -1;
     }
@@ -472,7 +490,7 @@ int _rm(int current_inode, const char *filepath, int user_id, int remove_dir) {
 
 
     inode_t *parent = &inode_table[parent_inode];
-    if (!hasPermission(parent, user_id, PERM_WRITE | PERM_EXEC)) {
+    if (!hasPermission(parent, user_id, PERM_WRITE | PERM_EXEC) && user_id != ROOT_UID) {
         printf("rm: Acesso negado, requer permissões W e X no diretório pai.\n");
         return -1;
     }
@@ -548,7 +566,7 @@ int _unlink(int current_inode, const char *filepath, int user_id){
     }
 
     inode_t *parent = &inode_table[parent_inode];
-    if (!hasPermission(parent, user_id, PERM_WRITE | PERM_EXEC)) {
+    if (!hasPermission(parent, user_id, PERM_WRITE | PERM_EXEC) && user_id != ROOT_UID) {
         printf("unlink: Acesso negado, requer permissões W e X no diretório pai.\n");
         return -1;
     }
@@ -590,15 +608,225 @@ int _df(){
     return 0;
 }
 
+int _chmod(int current_inode, const char *path, const char* permission_str, int user_id) {
+// read - peso 4
+// write - peso 2
+// execute - peso 1
+// exemplo - 77 = rwx rwx
+    int target_inode;
+    if (resolvePath(path, current_inode, &target_inode) != 0) {
+        printf("chmod: esse arquivo não existe\n");
+        return -1;
+    }
+        
+
+    inode_t *inode = &inode_table[target_inode];
+
+    // Somente dono pode alterar permissões
+    if (inode->owner_uid != user_id & user_id != ROOT_UID) {
+        printf("chmod: Acesso negado, apenas o dono pode usar chmod.\n");
+        return -1;
+    }
+
+    uint8_t new_perm;
+    if (parse_octal_permissions(permission_str, &new_perm) != 0) {
+        printf("chmod: formato inválido (use octal, ex: 75, 64, 60)\n");
+        return -1;
+    }
+
+    inode->permissions = new_perm;
+    sync_fs();
+    
+    return 0;
+}
+
+
+
+int assert_user_exists(const char* username) {
+    char* content;
+    _cat(ROOT_INODE, passwd_path, ROOT_UID, &content); // Lê o arquivo passwd para encontrar o usuário e seu UID
+
+    char* line_ptr = strtok(content, "\n"); // Itera sobre cada linha do passwd
+    while (line_ptr != NULL) {
+
+        char *colon1_ptr = strchr(line_ptr, ':'); // Procura o ':' que divide as linhas do passwd que contém <nome>:x:<UID>. Nesse caso será utilizado como marcador para o final da string.
+
+        int name_length = colon1_ptr - line_ptr; // calcula o número de carácteres do inicio da linha até o colon ':'
+        char username_found[name_length + 1]; 
+        strncpy(username_found, line_ptr, name_length); // copia somente o nome do usuario
+        username_found[name_length] = '\0';
+
+
+        if (strcmp(username_found, username) == 0) { // usuário encontrado, procura o UID agora
+
+            char *colon2_ptr = strchr(colon1_ptr + 1, ':'); // <nome>:x:<UID> (ponteiro posicionado no último colon ':' para encotrar UID)
+
+            char *uid_str = colon2_ptr + 1; // CUIDADO, PRECISO VERIFICAR SE ESSE PONTEIRO PODE INCLUIR O '\n' DO FINAL DA STRING
+
+            int uid = atoi(uid_str); // converte a string para inteiro
+            free(content);
+
+            return uid;
+        }
+
+        line_ptr = strtok(NULL, "\n"); // pula de linha
+    }
+
+    free(content);
+    return -1;
+}
+
+
+int _chown(int current_inode, const char *path, const char* new_owner, int user_id) {
+    if (user_id != ROOT_UID) {printf("chown: Acesso negado, cocê precisa ser root para utilizar esse comando. Utilize o comando 'sudo'\n"); return -1; }
+    int new_owner_uid = assert_user_exists(new_owner);
+    if (new_owner_uid == -1) {printf("chown: O usuário %s não existe\n", new_owner); return -1;}
+
+    int target_inode;
+    if (resolvePath(path, current_inode, &target_inode) != 0) {
+        printf("chown: esse arquivo não existe\n");
+        return -1;
+    }
+
+    inode_t *inode = &inode_table[target_inode];
+    inode->owner_uid = new_owner_uid;
+    sync_fs();
+    return 0;
+}
+
+// Utils
+
+int get_next_uid() {
+    char *content = NULL;
+
+    // Lê o arquivo passwd
+    _cat(ROOT_INODE, passwd_path, ROOT_UID, &content);
+    if (!content) return -1;
+
+    char buffer[2048];
+    strncpy(buffer, content, sizeof(buffer) - 1);
+    buffer[sizeof(buffer) - 1] = '\0';
+    free(content);
+
+    // tratamento caso o passwd termine com '\n'
+    size_t len = strlen(buffer);
+    if (len > 0 && buffer[len - 1] == '\n')
+        buffer[len - 1] = '\0';
+
+    // encontra a última linha
+    char *last_line_break = strrchr(buffer, '\n');
+    char *last_line = last_line_break ? last_line_break + 1 : buffer;
+
+    // encontra o último 'colon' o do UID
+    char *last_colon = strrchr(last_line, ':');
+    if (!last_colon) return -1;
+
+    int uid = atoi(last_colon + 1);
+    return uid + 1;
+}
+
+int create_root() {
+    _echo_arrow(ROOT_INODE, passwd_path, "root:x:0\n", ROOT_UID);
+    _echo_arrow(ROOT_INODE, shadow_path, "root:!\n", ROOT_UID);
+    _mkdir(ROOT_INODE, "home/", ROOT_UID);
+    _chmod(ROOT_INODE, "home/", "77", ROOT_UID);
+    return 0;
+}
+
+int create_user() {
+    char username[MAX_NAMESIZE], password[MAX_PASSWORD_SIZE], passwd_entry[MAX_PASSWD_ENTRY], shadow_entry[MAX_SHADOW_ENTRY], encrypted_password[MAX_HASH_SIZE], user_home[MAX_NAMESIZE + 7];
+    int passwd_inode, shadow_inode;
+
+
+    // Input do Usuário
+    printf("------------ Criação de usuário -----------\n\n");
+    printf("Digite o nome do usuário a ser criado: ");
+    fgets(username, MAX_NAMESIZE, stdin);
+    printf("Defina a senha: ");
+    fgets(password, MAX_PASSWORD_SIZE, stdin);
+
+    // Remove o '\n'
+    username[strcspn(username, "\n")] = '\0';
+    password[strcspn(password, "\n")] = '\0';
+
+    // Obtendo os I-Nodes do passwd e shadow
+    resolvePath(passwd_path, ROOT_INODE, &passwd_inode);
+    resolvePath(shadow_path, ROOT_INODE, &shadow_inode);
+
+    // obtém o próximo UID disponível
+    int new_uid = get_next_uid();
+    
+    // Lógica do passwd
+    snprintf(passwd_entry, sizeof(passwd_entry), "%s:x:%d\n", username, new_uid);
+    addContentToInode(passwd_inode, passwd_entry, strlen(passwd_entry), ROOT_UID);
+
+    
+    // Lógica do shadow
+    encrypt_password(password, encrypted_password);
+    snprintf(shadow_entry, sizeof(shadow_entry), "%s:%s\n", username, encrypted_password);
+    addContentToInode(shadow_inode, shadow_entry, strlen(shadow_entry), ROOT_UID);
+
+    // Cria a home do usuário
+    snprintf(user_home, sizeof(user_home), "home/%s/", username);
+    _mkdir(ROOT_INODE, user_home, new_uid);
+    printf("Usuário criado!\n\n");
+    return 0;
+}
+
+
+int login(const char* username, const char* password, int uid) {
+    char* content;
+    char password_found[MAX_HASH_SIZE];
+
+    // Buffers precisam ser zerados antes do uso
+    password_found[0] = '\0';
+    _cat(ROOT_INODE, shadow_path, ROOT_UID, &content);
+    // Itera linhas
+    char* line = strtok(content, "\n");
+    while (line != NULL)
+    {
+        // Manipulação da string para encontrar o usuário no shadow <nome_usuario>:<hash da senha>
+        char* colon1_ptr = strchr(line, ':');  // posiciona um ponteiro no colon para obter o tamanho do nome
+
+        int user_length = colon1_ptr - line;
+
+        char username_found[user_length + 1];
+        strncpy(username_found, line, user_length);
+        username_found[user_length] = '\0';
+
+        // Compara usuário
+        if (strcmp(username_found, username) == 0) {
+            // usuário encontrado!
+            // manipulação da string para obter o hash da senha
+            size_t end_line = strcspn(colon1_ptr + 1, "\n");
+            strncpy(password_found, colon1_ptr + 1, end_line);
+            password_found[end_line] = '\0';
+
+            if (strcmp(password_found, crypt(password, password_found)) == 0) { // caso o hash da senha informada coincida com o hash da senha armazenada, autentica o usuário
+                authenticated_uid = uid;
+            } else {
+                authenticated_uid = -1;
+            }
+            break;
+        }
+
+        line = strtok(NULL, "\n");
+    }
+
+    printf("%s\n", authenticated_uid != -1 ? "Usuário autenticado!\n" : "Login inválido!");
+
+    free(content);
+    return authenticated_uid;
+}
+
+
 // CMD IMPLEMENTATION
-
-
 
 
 void cmd_cd(int *current_inode, const char *arg1, const char *arg2, const char *arg3, int uid) {
     if (!arg1) { printf("Uso: cd <dir>\n"); return; }
-    UNREFERENCED(arg1); UNREFERENCED(arg2); UNREFERENCED(arg3); UNREFERENCED(uid);
-    _cd(current_inode, arg1);
+    UNREFERENCED(arg1); UNREFERENCED(arg2); UNREFERENCED(arg3);
+    _cd(current_inode, arg1, uid);
 }
 
 
@@ -690,10 +918,40 @@ void cmd_ln(int *current_inode, const char *opt, const char *src, const char *ds
     _ln_s(*current_inode, src, dst, uid);
 }
 
-void cmd_su(int *current_inode, const char *user, const char *arg2, const char *arg3, int uid) {
-    if (!user) { printf("Uso: su <uid>\n"); return; }
-    UNREFERENCED(user); UNREFERENCED(uid); UNREFERENCED(current_inode); UNREFERENCED(arg2); UNREFERENCED(arg3);
-    // strncpy(uid, user, 10);
+void cmd_sudo(int *current_inode, const char *arg1, const char *arg2, const char *arg3, int uid) {
+    if (!arg1) { printf("Uso: sudo <comando> <args>\n"); return; }
+    int handled = 0, tries = 3;
+    char password[MAX_PASSWORD_SIZE];
+    while (tries)
+    {
+        printf("Senha: ");
+        fgets(password, MAX_PASSWORD_SIZE, stdin);
+        password[strcspn(password, "\n")] = '\0';
+        if (login(username, password, uid) != -1) {break;}
+        tries--;
+    }
+    // restaura o uid anterior caso o usuário gaste todas as tentativas.
+    if (authenticated_uid == -1) {
+        authenticated_uid = uid; 
+        return;
+    } 
+    
+
+    for (int i = 0; i < command_count; i++) {
+        if (strcmp(arg1, commands[i].name) == 0) {
+            commands[i].fn(
+                current_inode,
+                arg2, arg3, "",
+                ROOT_UID
+            );
+            handled = 1;
+            break;
+        }
+    }
+
+    if (!handled) {
+        printf("sudo: Comando não reconhecido: %s\n", arg1);
+    }
 }
 
 
@@ -709,143 +967,22 @@ void cmd_df(int *current_inode, const char *arg1, const char *arg2, const char *
     _df();
 }
 
-
-int get_next_uid() {
-    char* buffer = NULL;
-    char stack_buffer[2048];
-    _cat(ROOT_INODE, passwd_path, ROOT_UID, &buffer);
-    strcpy(stack_buffer, buffer);
-    free(buffer);
-    
-    strip_newline(stack_buffer);
-    
-    char *last_line_break = strrchr(stack_buffer, '\n');
-    char *last_line = last_line_break ? last_line_break + 1 : stack_buffer;
-    char *last_colon = strrchr(last_line, ':');
-    
-    if (!last_colon) return -1;
-    return atoi(last_colon) + 1;
-}
-
-int create_root() {
-    _echo_arrow(ROOT_INODE, passwd_path, "root:x:0\n", ROOT_UID);
-    _echo_arrow(ROOT_INODE, shadow_path, "root:!\n", ROOT_UID);
-    return 0;
-}
-
-int create_user() {
-    char username[MAX_NAMESIZE], password[MAX_PASSWORD_SIZE], passwd_entry[MAX_PASSWD_ENTRY], shadow_entry[MAX_SHADOW_ENTRY], encrypted_password[MAX_HASH_SIZE];
-    int passwd_inode, shadow_inode;
-
-
-    // Input do Usuário
-    printf("------------ Criação de usuário -----------\n\n");
-    printf("Digite o nome do usuário a ser criado: ");
-    fgets(username, MAX_NAMESIZE, stdin);
-    printf("Defina a senha: ");
-    fgets(password, MAX_PASSWORD_SIZE, stdin);
-
-    // Remove o '\n'
-    username[strcspn(username, "\n")] = '\0';
-    password[strcspn(password, "\n")] = '\0';
-
-    // Obtendo os I-Nodes do passwd e shadow
-    resolvePath(passwd_path, ROOT_INODE, &passwd_inode);
-    resolvePath(shadow_path, ROOT_INODE, &shadow_inode);
-
-    // obtém o próximo UID disponível
-    int new_uid = get_next_uid();
-    
-    // Lógica do passwd
-    snprintf(passwd_entry, sizeof(passwd_entry), "%s:x:%d\n", username, new_uid);
-    addContentToInode(passwd_inode, passwd_entry, strlen(passwd_entry), ROOT_UID);
-
-    
-    // Lógica do shadow
-    encrypt_password(password, encrypted_password);
-    snprintf(shadow_entry, sizeof(shadow_entry), "%s:%s\n", username, encrypted_password);
-    addContentToInode(shadow_inode, shadow_entry, strlen(shadow_entry), ROOT_UID);
-    printf("Usuário criado!\n\n");
-    return 0;
-}
-
-int assert_user_exists(char* username) {
-    char* content;
-    _cat(ROOT_INODE, passwd_path, ROOT_UID, &content); // Lê o arquivo passwd para encontrar o usuário e seu UID
-
-    char* line_ptr = strtok(content, "\n"); // Itera sobre cada linha do passwd
-    while (line_ptr != NULL) {
-
-        char *colon1_ptr = strchr(line_ptr, ':'); // Procura o ':' que divide as linhas do passwd que contém <nome>:x:<UID>. Nesse caso será utilizado como marcador para o final da string.
-
-        int name_length = colon1_ptr - line_ptr; // calcula o número de carácteres do inicio da linha até o colon ':'
-        char username_found[name_length + 1]; 
-        strncpy(username_found, line_ptr, name_length); // copia somente o nome do usuario
-        username_found[name_length] = '\0';
-
-
-        if (strcmp(username_found, username) == 0) { // usuário encontrado, procura o UID agora
-
-            char *colon2_ptr = strchr(colon1_ptr + 1, ':'); // <nome>:x:<UID> (ponteiro posicionado no último colon ':' para encotrar UID)
-
-            char *uid_str = colon2_ptr + 1; // CUIDADO, PRECISO VERIFICAR SE ESSE PONTEIRO PODE INCLUIR O '\n' DO FINAL DA STRING
-
-            int uid = atoi(uid_str); // converte a string para inteiro
-            free(content);
-
-            return uid;
-        }
-
-        line_ptr = strtok(NULL, "\n"); // pula de linha
-    }
-
-    free(content);
-    return -1;
+void cmd_chmod(int *current_inode, const char *arg1, const char *arg2, const char *arg3, int uid) {
+    if (!arg1 || !arg2 || !atoi(arg2)) { printf("Uso: chmod <caminho do arquivo> <código da permissão (2 digítos owner|others)>\n"); return; }
+    UNREFERENCED(arg3);
+    _chmod(*current_inode, arg1, arg2, uid);
 }
 
 
-int login(const char* username, const char* password, int uid) {
-    char* content;
-    char password_found[MAX_HASH_SIZE];
+void cmd_chown(int *current_inode, const char *arg1, const char *arg2, const char *arg3, int uid) {
+    if (!arg1 || !arg2) { printf("Uso: chown <caminho do arquivo> <nome do novo dono>\n"); return; }
+    UNREFERENCED(arg3);
+    _chown(*current_inode, arg1, arg2, uid);
+}
 
-    // Buffers precisam ser zerados antes do uso
-    password_found[0] = '\0';
-    _cat(ROOT_INODE, shadow_path, ROOT_UID, &content);
-    // Itera linhas
-    char* line = strtok(content, "\n");
-    while (line != NULL)
-    {
-        // Manipulação da string para encontrar o usuário no shadow <nome_usuario>:<hash da senha>
-        char* colon1_ptr = strchr(line, ':');  // posiciona um ponteiro no colon para obter o tamanho do nome
 
-        int user_length = colon1_ptr - line;
-
-        char username_found[user_length + 1];
-        strncpy(username_found, line, user_length);
-        username_found[user_length] = '\0';
-
-        // Compara usuário
-        if (strcmp(username_found, username) == 0) {
-            // usuário encontrado!
-            // manipulação da string para obter o hash da senha
-            size_t end_line = strcspn(colon1_ptr + 1, "\n");
-            strncpy(password_found, colon1_ptr + 1, end_line);
-            password_found[end_line] = '\0';
-
-            if (strcmp(password_found, crypt(password, password_found)) == 0) { // caso o hash da senha informada coincida com o hash da senha armazenada, autentica o usuário
-                authenticated_uid = uid;
-            } else {
-                authenticated_uid = -1;
-            }
-            break;
-        }
-
-        line = strtok(NULL, "\n");
-    }
-
-    printf("%s\n", authenticated_uid != -1 ? "Usuário autenticado!\n" : "Login inválido!");
-
-    free(content);
-    return authenticated_uid;
+void cmd_create_user(int *current_inode, const char *arg1, const char *arg2, const char *arg3, int uid) {
+    UNREFERENCED(current_inode); UNREFERENCED(arg1); UNREFERENCED(arg2); UNREFERENCED(arg3); UNREFERENCED(uid);
+    create_user();
 }
 

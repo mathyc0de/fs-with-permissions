@@ -20,9 +20,12 @@ Command commands[] = {
     {"cp",      cmd_cp},
     {"mv",      cmd_mv},
     {"ln",      cmd_ln},
-    {"su",      cmd_su},
+    {"sudo",    cmd_sudo},
     {"unlink",  cmd_unlink},
     {"df",      cmd_df},
+    {"chmod",   cmd_chmod},
+    {"chown",   cmd_chown},
+    {"create-user", cmd_create_user}
 };
 
 const int command_count = sizeof(commands) / sizeof(commands[0]);
