@@ -678,7 +678,7 @@ int assert_user_exists(const char* username) {
 
 
 int _chown(int current_inode, const char *path, const char* new_owner, int user_id) {
-    if (user_id != ROOT_UID) {printf("chown: Acesso negado, cocê precisa ser root para utilizar esse comando. Utilize o comando 'sudo'\n"); return -1; }
+    if (user_id != ROOT_UID) {printf("chown: Acesso negado, você precisa ser root para utilizar esse comando. Utilize o comando 'sudo'\n"); return -1; }
     int new_owner_uid = assert_user_exists(new_owner);
     if (new_owner_uid == -1) {printf("chown: O usuário %s não existe\n", new_owner); return -1;}
 
@@ -920,19 +920,21 @@ void cmd_ln(int *current_inode, const char *opt, const char *src, const char *ds
 
 void cmd_sudo(int *current_inode, const char *arg1, const char *arg2, const char *arg3, int uid) {
     if (!arg1) { printf("Uso: sudo <comando> <args>\n"); return; }
-    int handled = 0, tries = 3;
+    int handled = 0, tries = 3, old_uid = authenticated_uid;
     char password[MAX_PASSWORD_SIZE];
     while (tries)
     {
         printf("Senha: ");
         fgets(password, MAX_PASSWORD_SIZE, stdin);
         password[strcspn(password, "\n")] = '\0';
-        if (login(username, password, uid) != -1) {break;}
+        if (login(username, password, uid) != -1) {
+            break;
+        }
         tries--;
     }
     // restaura o uid anterior caso o usuário gaste todas as tentativas.
     if (authenticated_uid == -1) {
-        authenticated_uid = uid; 
+        authenticated_uid = old_uid; 
         return;
     } 
     
