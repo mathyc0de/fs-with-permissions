@@ -26,6 +26,10 @@ int _cd(int *current_inode, const char *path) {
     inode_t *inode = &inode_table[target_inode];
     if (inode->type != FILE_DIRECTORY) return -1;
 
+    if (hasPermission(inode, authenticated_uid, PERM_EXEC) == 0) {
+        printf("cd: Acesso negado, requer permissão X.\n");
+        return -1;
+    };
     *current_inode = target_inode;
     return 0;
 }
@@ -43,6 +47,13 @@ int _mkdir(int current_inode, const char *full_path, int user_id) {
         if (resolvePath(dir_path, current_inode, &parent_inode) != 0) return -1;
     }
 
+    inode_t *parent = &inode_table[parent_inode];
+
+    if (!hasPermission(parent, user_id, PERM_WRITE | PERM_EXEC)) {
+        printf("mkdir: acesso negado — requer W e X no diretório pai.\n");
+        return -1;
+    }
+
     return createDirectory(parent_inode, name, user_id, NULL);
 }
 
@@ -57,6 +68,13 @@ int _touch(int current_inode, const char *full_path, int user_id) {
     if (resolvePath(dir_path, current_inode, &parent_inode) != 0) {
         if (createDirectoriesRecursively(dir_path, current_inode, user_id) != 0) return -1;
         if (resolvePath(dir_path, current_inode, &parent_inode) != 0) return -1;
+    }
+
+    inode_t *parent = &inode_table[parent_inode];
+
+    if (!hasPermission(parent, user_id, PERM_WRITE | PERM_EXEC)) {
+        printf("touch: acesso negado — requer W e X no diretório pai.\n");
+        return -1;
     }
 
     return createFile(parent_inode, name, user_id);
@@ -82,6 +100,11 @@ int _echo_arrow(int current_inode, const char *full_path, const char *content, i
     }
 
     inode_t *inode = &inode_table[inode_index];
+    if (!hasPermission(inode, user_id, PERM_WRITE)) {
+        printf("echo: acesso negado — requer permissão W.\n");
+        return -1;
+    }
+
     inode->size = 0;  
     if (inode->next_inode) freeInode(inode->next_inode);
     inode->next_inode = 0;
@@ -105,9 +128,14 @@ int _echo_arrow_arrow(int current_inode, const char *full_path, const char *cont
 
     int inode_index;
     if (dirFindEntry(parent_inode, name, FILE_REGULAR, &inode_index) != 0) {
+        if (!hasPermission(&inode_table[inode_index], user_id, PERM_WRITE)) {
+            printf("echo: Acesso negado, requer permissão W.\n");
+            return -1;
+        }
         if (createFile(parent_inode, name, user_id) != 0) return -1;
         if (dirFindEntry(parent_inode, name, FILE_REGULAR, &inode_index) != 0) return -1;
     }
+
 
     return addContentToInode(inode_index, content, strlen(content), user_id);
 }
@@ -130,7 +158,7 @@ int _cat(int current_inode, const char *path, int user_id, char** buffer) {
 
     // assegura que há permissão para leitura
     if (!hasPermission(inode, user_id, PERM_READ)) {
-        fprintf(stderr, "Erro: permissão negada para %s.\n", path);
+        printf("Acesso negado, requer permissão R\n");
         return -1;
     }
 
@@ -219,6 +247,17 @@ int _cp(int current_inode, const char *src_path, const char *src_name,
     inode_t *src_inode = &inode_table[src_file_inode];
     if (!src_inode) return -1;
 
+
+    if (!hasPermission(src_inode, user_id, PERM_READ)) {
+        printf("cp: Acesso negado, requer permissão de leitura no arquivo fonte.\n");
+        return -1;
+    }
+
+    inode_t *dst_parent = &inode_table[dst_parent_inode];
+    if (!hasPermission(dst_parent, user_id, PERM_WRITE | PERM_EXEC)) {
+        printf("cp: Acesso negado, requer permissão de escrita e execução no diretório destino.\n");
+        return -1;
+    }
     // Lê o conteúdo diretamente por inode
     char *buffer = malloc(src_inode->size + 1);
     if (!buffer) return -1;
@@ -265,6 +304,12 @@ int _mv(int current_inode, const char *src_path, const char *src_name,
     int src_parent_inode;
     if (resolvePath(src_path, current_inode, &src_parent_inode) != 0) return -1;
 
+    inode_t *src_parent = &inode_table[src_parent_inode];
+    if (!hasPermission(src_parent, user_id, PERM_WRITE | PERM_EXEC)) {
+        printf("mv: Acesso negado, requer permissão no diretório de origem.\n");
+        return -1;
+    }
+
     return deleteFile(src_parent_inode, src_name, user_id);
 }
 
@@ -299,6 +344,12 @@ int _ln_s(int current_inode,
         if (resolvePath(link_dir, current_inode, &link_dir_index) != 0)
             return -1;
     }
+    inode_t *dir_inode = &inode_table[link_dir_index];
+    if (!hasPermission(dir_inode, user_id, PERM_WRITE | PERM_EXEC)) {
+        printf("ln: Acesso negado, requer permissões W e X no diretório.\n");
+        return -1;
+    }
+
 
     // --- 3. Cria o link simbólico ---
     createSymlink(link_dir_index, target_index, link_name, user_id);
@@ -319,6 +370,16 @@ int _ls(int current_inode, const char *path, int user_id, int info_arg) {
     }
     
     inode_t *dir_inode = &inode_table[target_inode];
+
+    if (!hasPermission(dir_inode, user_id, PERM_EXEC)) {
+        printf("ls: Acesso negado, requer permissão X no diretório.\n");
+        return -1;
+    }
+
+    if (!hasPermission(dir_inode, user_id, PERM_READ)) {
+        printf("ls: Acesso negado, requer permissão R no diretório.\n");
+        return -1;
+    }
 
     // itera sobre cada next dentro do inode
     do {
@@ -350,7 +411,7 @@ int _ls(int current_inode, const char *path, int user_id, int info_arg) {
                 if (info_arg) {
                     // Formata permissões (rwxrwxrwx)
                     char perm_str[10] = "---------";
-                    for (int who = 6; who >= 0; who -= 3) {
+                    for (int who = 3; who >= 0; who -= 3) {
                         perm_str[8-who-2] = (entry_inode->permissions & (PERM_READ << who)) ? 'r' : '-';
                         perm_str[8-who-1] = (entry_inode->permissions & (PERM_WRITE << who)) ? 'w' : '-';
                         perm_str[8-who] = (entry_inode->permissions & (PERM_EXEC << who)) ? 'x' : '-';
@@ -408,6 +469,14 @@ int _rm(int current_inode, const char *filepath, int user_id, int remove_dir) {
             printf("Arquivo não encontrado\n");
         return -1;
     }
+
+
+    inode_t *parent = &inode_table[parent_inode];
+    if (!hasPermission(parent, user_id, PERM_WRITE | PERM_EXEC)) {
+        printf("rm: Acesso negado, requer permissões W e X no diretório pai.\n");
+        return -1;
+    }
+
 
     // Procura o arquivo com o nome dentro do diretório pai
     int target_inode;
@@ -475,6 +544,12 @@ int _unlink(int current_inode, const char *filepath, int user_id){
     int target_inode;
     if (dirFindEntry(parent_inode, name, FILE_ANY, &target_inode) != 0) {
         printf("Link não encontrado\n");
+        return -1;
+    }
+
+    inode_t *parent = &inode_table[parent_inode];
+    if (!hasPermission(parent, user_id, PERM_WRITE | PERM_EXEC)) {
+        printf("unlink: Acesso negado, requer permissões W e X no diretório pai.\n");
         return -1;
     }
 

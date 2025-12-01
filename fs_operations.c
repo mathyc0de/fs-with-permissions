@@ -232,11 +232,15 @@ int dirRemoveEntry(int dir_inode, const char *name, inode_type_t type) {
 
 /* Verifica permissoes */
 int hasPermission(const inode_t *inode, int user_id, permission_t perm) {
+    int mode;
+
     if (inode->owner_uid == user_id) {
-        return ((inode->permissions >> 6) & PERM_RWX) & perm;
+        mode = (inode->permissions >> 3) & PERM_RWX;  // owner bits
     } else {
-        return (inode->permissions & PERM_RWX) & perm;
+        mode = inode->permissions & PERM_RWX;         // other bits
     }
+
+    return (mode & perm) != 0;   // booleano
 }
 
 /* Cria diretorio */
@@ -246,9 +250,6 @@ int createDirectory(int parent_inode, const char *name, int user_id, int* output
     if (dirFindEntry(parent_inode, name, FILE_DIRECTORY, &dummy_output) == 0) return -1;
 
     inode_t *parent= &inode_table[parent_inode];
-    if (parent_inode != ROOT_INODE){
-    if (!hasPermission(parent, user_id, PERM_WRITE)) return -1;
-    }
 
     int new_inode_index = allocateInode();
     if (new_inode_index < 0) return -1;
@@ -265,7 +266,7 @@ int createDirectory(int parent_inode, const char *name, int user_id, int* output
     new_inode->size = 0;
     new_inode->creator_uid = user_id;
     new_inode->owner_uid = user_id;
-    new_inode->permissions = PERM_RWX << 6 | PERM_RX << 3 | PERM_RX;
+    new_inode->permissions = PERM_RWX << 3 | PERM_NONE;
     new_inode->link_target_index = -1;
 
     int block = allocateBlock();
@@ -353,7 +354,6 @@ int deleteDirectory(int parent_inode, const char *name, int user_id){
     if (dirFindEntry(parent_inode, name, FILE_DIRECTORY, &target_inode) != 0) return -1;
 
     inode_t *target = &inode_table[target_inode];
-    if (!hasPermission(target, user_id, PERM_WRITE)) return -1;
     if (target->type != FILE_DIRECTORY) return -1;
 
     for (int i = 0; i < BLOCKS_PER_INODE; i++) {
@@ -395,9 +395,6 @@ int createFile(int parent_inode, const char *name, int user_id){
     if (dirFindEntry(parent_inode, name, FILE_REGULAR, &dummy_output) == 0) return -1;
 
     inode_t *parent= &inode_table[parent_inode];
-    if (parent_inode != ROOT_INODE){
-    if (!hasPermission(parent, user_id, PERM_WRITE)) return -1;
-    }
 
     int new_inode_index = allocateInode();
     if (new_inode_index < 0) return -1;
@@ -413,7 +410,7 @@ int createFile(int parent_inode, const char *name, int user_id){
     new_inode->size = 0;
     new_inode->creator_uid = user_id;
     new_inode->owner_uid = user_id;
-    new_inode->permissions = PERM_RWX << 6 | PERM_RX << 3 | PERM_RX;
+    new_inode->permissions = PERM_RWX << 3 | PERM_NONE;
     new_inode->link_target_index = -1;
 
     if (dirAddEntry(parent_inode, name, FILE_REGULAR, new_inode_index) != 0) return -1;
@@ -428,7 +425,6 @@ int deleteFile(int parent_inode, const char *name, int user_id){
     if (dirFindEntry(parent_inode, name, FILE_REGULAR, &target_inode) == -1) return -1;
 
     inode_t *target = &inode_table[target_inode];
-    if (!hasPermission(target, user_id, PERM_WRITE)) return -1;
 
     if (target->type != FILE_REGULAR && target->type != FILE_SYMLINK) return -1;
 
@@ -450,7 +446,6 @@ int addContentToInode(int inode_index, const char *data, size_t data_size, int u
 
     inode_t *inode = &inode_table[inode_index];
     // Permissão de escrita
-    if (!hasPermission(inode, user_id, PERM_WRITE)) return -1;
 
     size_t written = 0;
 
@@ -560,7 +555,6 @@ int readContentFromInode(int inode_number, char *buffer, size_t buffer_size, siz
     }
 
     inode_t *inode = &inode_table[target_inode];
-    if (!inode || !hasPermission(inode, user_id, PERM_READ)) return -1;
 
     size_t total_size = inode->size;
     if (buffer_size < total_size + 1) return -1; // espaço para '\0'
@@ -606,7 +600,6 @@ int createSymlink(int parent_inode, int target_index, const char *link_name, int
     
 
     inode_t *parent = &inode_table[parent_inode];
-    if (!hasPermission(parent, user_id, PERM_WRITE)) return -1;
 
     // 2. Aloca um novo i-node
     int inode_index = allocateInode();
@@ -638,7 +631,6 @@ int deleteSymlink(int parent_inode, int target_inode_idx, int user_id) {
     if (parent_inode < 0 || parent_inode >= MAX_INODES || !target_inode_idx) return -1;
 
     inode_t *target = &inode_table[target_inode_idx];
-    if (!hasPermission(target, user_id, PERM_WRITE)) return -1;
 
     if (target->type != FILE_SYMLINK) return -1;
 

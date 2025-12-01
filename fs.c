@@ -277,12 +277,12 @@ int show_inode_info(int inode_index) {
     // Monta string de permissões rwxrwxrwx
     char perm_str[10] = "---------";
     int pos = 0;
-    for (int who = 6; who >= 0; who -= 3) {
+    for (int who = 3; who >= 0; who -= 3) {
         perm_str[pos++] = (ino->permissions & (PERM_READ << who)) ? 'r' : '-';
         perm_str[pos++] = (ino->permissions & (PERM_WRITE << who)) ? 'w' : '-';
         perm_str[pos++] = (ino->permissions & (PERM_EXEC << who)) ? 'x' : '-';
     }
-    perm_str[9] = '\0';
+    perm_str[6] = '\0';
 
     printf("Inode %d:\n", inode_index);
     printf("  name: %s\n", ino->name);

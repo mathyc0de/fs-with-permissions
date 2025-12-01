@@ -41,8 +41,9 @@ typedef enum {
     FILE_SYMLINK,
     FILE_ANY
 } inode_type_t;
+
 typedef enum {
-    PERM_NONE  = 0,        // 000 000 000
+    PERM_NONE  = 0,        // 000 000
     PERM_EXEC  = 1 << 0,   // 001
     PERM_WRITE = 1 << 1,   // 010
     PERM_READ  = 1 << 2,   // 100
@@ -50,7 +51,7 @@ typedef enum {
     PERM_RX    = PERM_READ | PERM_EXEC,    
     PERM_RWX   = PERM_READ | PERM_WRITE | PERM_EXEC,   // 111
 
-    PERM_ALL   = (PERM_RWX << 6) | (PERM_RWX << 3) | PERM_RWX
+    PERM_ALL   = (PERM_RWX << 3) | PERM_RWX
 } permission_t;
 
 typedef struct {
