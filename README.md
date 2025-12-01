@@ -9,28 +9,29 @@ Desenvolver um sistema de arquivos persistente que simule operações típicas d
 
 1.  *Clone e acesse o repositório:*
     ```
-    git clone https://github.com/FelipeFagundesCosta/SistemaDeArquivos
-    cd SistemaDeArquivos
+    git clone https://github.com/mathyc0de/fs-with-permissions
+    cd fs-with-permissions
     ```
 
     
 
 3.  *Compile no Terminal Linux:*
     ```
-    gcc cmd.c fs.c -o cmd
+    make
     ```
     
 
 4.  *Execute o programa principal:*
     ```
-    ./cmd
+    ./main
     ```
     
 5.  *Execute os comandos após a criação de seu disco:*
     
-    - Na primeira execução, o programa criará automaticamente um arquivo de disco (disk.dat).
+    - Na primeira execução, o programa criará automaticamente um arquivo de disco (disk.dat). Assim como a criação do usuário root, 
+    a solicitação de criação do primeiro usuário e a criação da home desse usuário.
 
-    - Nas execuções seguintes, ele montará o disco existente.
+    - Nas execuções seguintes, ele montará o disco existente e solicitará login.
 
     - Você pode agora usar os comandos do sistema de arquivos (lista com comandos já implementados na seção [Comandos Implementados](#comandos)).
 
@@ -39,15 +40,23 @@ Desenvolver um sistema de arquivos persistente que simule operações típicas d
 
 ## Estrutura do Projeto
 
-SistemaDeArquivos/
+fs-with-permissions/
 
 │
 
-├── fs.h # Cabeçalho: structs e protótipos
+├── main.c # Ponto de entrada do programa
 
-├── fs.c # Implementação das funções do sistema de arquivos
+├── utils.c # Funções auxiliares (e.g geração de hash da senha)
 
-└── cmd.c # Ponto de entrada do programa
+├── core_utils.c # Implementação das funções a serem utilizadas no cmd (e.g touch, cd, chmod, chown...)
+
+├── fs_operations.c # Implementação das funções que fazem uma abstração do sistema de arquivos (e.g adicionar conteúdo a um inode)
+
+└── fs.c # Implementação das funções do sistema de arquivos (e.g alocar um i-node)
+
+
+
+
 
 ---
 <a id="comandos"></a>
@@ -149,12 +158,12 @@ Exemplo:
 ```
 ln -s /home/user/docs/arquivo.txt link_para_arquivo.txt
 ```
-### su [usuário]
+### sudo [comando] [args]
 
-Muda o usuário atual do sistema de arquivos.
+Usa permissões de administrador para chamar um comando
 Exemplo:
 ```
-su novouser
+sudo cd etc
 ```
 ### unlink [link]
 
@@ -171,9 +180,35 @@ Exemplo:
 df
 ```
 
+### chmod [chmod]
+
+Altera permissões para um diretório ou arquivo (da mesma forma que o linux, porém sem grupo: owner | others)
+Exemplo:
+```
+chmod teste.txt 77
+```
+
+### chown [chown]
+
+Altera o dono de um diretório ou arquivo (requer sudo)
+Exemplo:
+```
+chown teste.txt fulano
+```
+
+### create-user [create-user]
+
+Solicita o input do usuário para a criação de um novo usuário
+Exemplo:
+```
+create-user
+```
+
 ## Resultado Final 
 Um programa em C capaz de:
 - Criar e montar um disco virtual
+- Gerenciar usuários e permissões
+- Implementar a segurança do sistema de arquivos de forma similar ao linux (gerando hash na senha e armazenando dados no etc/passwd e etc/shadow)
 - Manipular arquivos e diretórios usando i-nodes
 - Persistir todas as alterações
 - Interpretar caminhos absolutos e relativos
